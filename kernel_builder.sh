@@ -15,14 +15,21 @@
 
 # Example run: kernel_builder.sh -u https://git.kernel.org/torvalds/t/linux-4.13-rc1.tar.gz
 
+. get_os.sh
+. utils.sh
+
 URL=""
-FOLDER="debs"
 TAR_DIRECTORY=""
 CLEAN=false
 CCACHE=true
 REVISION="0.1.papagalu"
 BASEDIR=`dirname $0`
-JOBS="32"
+FOLDER="$BASEDIR/packages"
+
+Threads=`getconf _NPROCESSORS_ONLN`
+a=`echo "1.5 * $Threads" | bc`
+JOBS=`printf "%.0f" $a`
+unset Threads; unset a
 
 function pushd() {
     command pushd "$@" > /dev/null
@@ -34,8 +41,8 @@ function popd() {
 
 function install_deps() {
     printf "\nInstalling dependencies.\n\n"
-    sudo apt-get update
-    sudo apt-get install git fakeroot build-essential ncurses-dev xz-utils libssl-dev bc ccache kernel-package -y
+    sudo $os_PACKAGE_MANAGER update -y
+    sudo $os_PACKAGE_MANAGER install `get_packages` -y
     sudo sed -i -e "s/j1/j$JOBS/g" /usr/share/kernel-package/ruleset/targets/common.mk
     if [ $CCACHE = true ]
     then
@@ -45,7 +52,7 @@ function install_deps() {
 
 function download() {
     printf "\nStarting download from $URL\n\n"
-    wget -nc $URL
+    exec_with_retry "wget -nc $URL" 3 5
     if [ $? -ne 0 ]
     then
         printf "\nDownload failed\nPossible bad URL: %s\n\n" $URL
@@ -67,15 +74,23 @@ function prepare() {
     touch REPORTING-BUGS
 }
 
-function build() {
-    printf "\nStarting to build the deb packages\n\n"
+function build_Ubuntu() {
     fakeroot make-kpkg --initrd --revision=$REVISION kernel_image kernel_headers -j $JOBS
 }
 
-function save_deb() {
+function build_CentOS() {
+    make rpm -j $JOBS
+}
+
+function save_package_Ubuntu() {
     popd
     mkdir -p ../$FOLDER
-    cp *.deb ../$FOLDER
+    cp *.$os_PACKAGE ../$FOLDER
+}
+
+function save_package_CentOS() {
+    mkdir -p $FOLDER
+    find ~/rpmbuild -name "*.rpm" | xargs -I {} cp {} $FOLDER
 }
 
 function clean() {
@@ -87,7 +102,18 @@ function clean() {
 }
 
 function help() {
-    printf "Small script that help us to build a linux kernel.\nBellow you can find the options of the script\n\n\t-u url for kernel source code\n\t-f deb output folder(default=debs)\n\t-c wheter you want to use the previous build or not(default=false)\n\t-C use it if you want to disable ccache(default=enabled) \n\t-r change the revision of the resulting deb files(default=0.1.papagalu)\n\t-j number of Jobs(default=32)\n\t-h display this output message\n"
+cat << EOF
+Small script that help us to build a linux kernel.
+Bellow you can find the options of the script
+ 
+     -u url for kernel source code
+     -f deb output folder(default=basedir/packages)
+     -c wheter you want to use the previous build or not(default=false)
+     -C use it if you want to disable ccache(default=enabled)
+     -r change the revision of the resulting deb files(default=0.1.papagalu)
+     -j number of Jobs(default=1.5*number of threads)
+     -h display this output message
+EOF
 }
 
 while getopts "f:u:C:c:r:j:h" opt; do
@@ -141,8 +167,9 @@ install_deps
 download
 extract
 prepare
-build
-save_deb
+printf "\nStarting to build the packages\n\n"
+build_$os_VENDOR
+save_package_$os_VENDOR
 
 if [ $CLEAN = true ]
 then
