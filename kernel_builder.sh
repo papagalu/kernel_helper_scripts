@@ -13,6 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+# Example run: kernel_builder.sh -u https://git.kernel.org/torvalds/t/linux-4.13-rc1.tar.gz
+
 URL=""
 FOLDER="debs"
 TAR_DIRECTORY=""
