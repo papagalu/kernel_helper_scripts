@@ -46,7 +46,7 @@ function GetOSVersion {
         os_UPDATE=""
         os_PACKAGE="rpm"
         os_PACKAGE_MANAGER="yum"
-        if [[ "Debian,Ubuntu,LinuxMint" =~ $os_VENDOR ]]; then
+        if [[ "Debian,Ubuntu,LinuxMint,Parrot" =~ $os_VENDOR ]]; then
             os_PACKAGE="deb"
             os_PACKAGE_MANAGER="apt"
         elif [[ "SUSE LINUX" =~ $os_VENDOR ]]; then
@@ -125,8 +125,8 @@ function GetOSVersion {
 function get_packages() {
 
     declare -A packages
-    packages=( ["Ubuntu"]="fakeroot build-essential ncurses-dev xz-utils libssl-dev bc ccache kernel-package"
-               ["CentOS"]="ncurses-devel hmaccalc zlib-devel binutils-devel elfutils-libelf-devel openssl-devel"
+    packages=( ["Ubuntu"]="fakeroot build-essential libncurses5-dev xz-utils libssl-dev bc ccache kernel-package"
+               ["CentOS"]="ncurses-devel hmaccalc zlib-devel binutils-devel elfutils-libelf-devel openssl-devel ccache"
     )
 
     echo "${packages[$os_VENDOR]}"
